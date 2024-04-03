@@ -10,10 +10,9 @@ import time
 import Crypto.PublicKey.RSA
 import OpenSSL
 
-try:
-    from urllib.request import urlopen, Request  # Python 3
-except ImportError:
-    from urllib2 import urlopen, Request  # Python 2
+
+from urllib.request import urlopen, Request  # Python 3
+
 
 __version__ = "0.2.0"
 
@@ -21,6 +20,7 @@ __version__ = "0.2.0"
 class Acme(object):
     def __init__(
             self,
+            nginx,
             api_url,
             logger,
             domains=None,
@@ -46,6 +46,7 @@ class Acme(object):
             dns_provider, list, dns provider that is used for dns challenge
             skip_nginx_reload, bool, should nginx be reloaded after certificate issue
         """
+        self.nginx=nginx
         self.debug = debug
         if not domains:
             domains = list()
@@ -67,8 +68,8 @@ class Acme(object):
 
     def _reload_nginx(self):
         """ signal nginx master process to reload configuration """
-        if subprocess.run(["nginx", "-s", "reload"]).returncode is not 0:
-            raise Exception("Nginx is either not running or configtest failed!")
+        self.nginx.reload()
+
 
     def _write_challenge(self, token, thumbprint):
         with open(os.path.join(self.challenge_dir, token), 'w') as fd:
@@ -114,7 +115,7 @@ class Acme(object):
             key = fd.read()
         pk = OpenSSL.crypto.load_privatekey(OpenSSL.crypto.FILETYPE_PEM, key)
         req.set_pubkey(pk)
-        req.set_version(2)
+        req.set_version(0)
         req.sign(pk, "sha256")
         return OpenSSL.crypto.dump_certificate_request(OpenSSL.crypto.FILETYPE_ASN1, req)
 
